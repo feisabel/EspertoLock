@@ -6,8 +6,8 @@
 
 #include <ESP8266WiFi.h>
 
-const char ssid[] = "GOUVEIA";
-const char pass[] = "ginamoura3006";
+const char ssid[] = "PI_Guest_C604_2.4G_altos";
+const char pass[] = "1029384756";
 
 const byte DOOR_SIGNAL_PIN = 2;
 
@@ -18,6 +18,14 @@ const byte DOOR_SIGNAL_PIN = 2;
 //This means we can access it using
 //a url like http://ip
 WiFiServer server(80);
+
+const int keys_capacity = 10;
+String keys[keys_capacity];
+int keys_size = 0;
+
+void addKey(String key);
+void removeKey(String key);
+bool isKeyAuthorized(String key);
 
 void setup() 
 {
@@ -30,7 +38,7 @@ void setup()
   //means we want the door to lock.
   //We want it to be locked, initially
   pinMode(DOOR_SIGNAL_PIN, OUTPUT);
-  digitalWrite(DOOR_SIGNAL_PIN, LOCK);
+  digitalWrite(DOOR_SIGNAL_PIN, LOW);
 
   //TODO: Wait for user to input network ID and password
 
@@ -60,23 +68,64 @@ void loop()
 
   //read first line of the request
   String req = client.readStringUntil('\r');
-  Serial.print("Client requested: ");
-  Serial.println(req);
+  char mode = req.charAt(5);
+  String key = req.substring(6, 10);
+  Serial.print("Mode: ");
+  Serial.println(mode);
+  Serial.print("Key: ");
+  Serial.println(key);
 
   //define whether it is requesting
   //to open or close the door. Undefined
   //requests will be equivalent to request
   //locking.
-  byte lock = LOCK;
 
-  if(req.indexOf("/lock") != -1) lock = LOCK;
-  else if(req.indexOf("/unlock") != -1) lock = UNLOCK;
- 
-  //write to Arduino board we want to lock/unlock door
-  digitalWrite(DOOR_SIGNAL_PIN, lock);
+  if(mode == 'u') {
+    Serial.println("unlock requested");
+    if(isKeyAuthorized(key)) {
+      Serial.println("key authorized");
+      digitalWrite(DOOR_SIGNAL_PIN, HIGH);
+      delay(50);
+      digitalWrite(DOOR_SIGNAL_PIN, LOW);
+    }
+  }
+  else if(mode == 's') {
+    Serial.println("save requested");
+    addKey(key);
+  }
+  else if(mode == 'r') {
+    Serial.println("remove requested");
+    removeKey(key);
+  }
 
   //Send message to client, then disconnect
   client.flush();
   client.print("OK");
   client.stop();
 }
+
+void addKey(String key) {
+  if(keys_size < keys_capacity) {
+    keys[keys_size] = key;
+    keys_size++;
+  }
+}
+  
+void removeKey(String key) {
+  for(int i = 0; i < keys_size; i++) {
+    if(keys[i].equals(key)) {
+      keys[i] = keys[keys_size - 1];
+      keys_size--;
+    }
+  }
+}
+
+bool isKeyAuthorized(String key) {
+  for(int i = 0; i < keys_size; i++) {
+    if(keys[i].equals(key)) {
+      return true;
+    }
+  }
+  return false;
+}
+
