@@ -22,6 +22,7 @@ WiFiServer server(80);
 byte door_state;
 
 //------ magnet ------
+//maget D2
 const byte MAGNET = 4;
 
 //------ lock ------
@@ -29,7 +30,7 @@ void operate_lock();
 byte lock_state;
 
 //------ motor -------
-//preto +5, branco gnd
+//in1 D1, in2 D4, in3 D5, in4 D6
 const int stepsPerRevolution = 580;
 const int in1 = 5, in2 = 2, in3 = 14, in4 = 12;
 const int fullTurn = 4*stepsPerRevolution;
