@@ -5,42 +5,56 @@
 //------------------------------------------
 
 #include <ESP8266WiFi.h>
+#include <Stepper.h>
 
+#define OPEN 0
+#define CLOSED 1
+
+//------ wifi ------
 const char ssid[] = "PI_Guest_C604_2.4G_altos";
 const char pass[] = "1029384756";
-
-const byte DOOR_SIGNAL_PIN = 2;
-
-#define UNLOCK HIGH
-#define LOCK LOW
-
 //Port 80 is the default HTTP port.
 //This means we can access it using
 //a url like http://ip
 WiFiServer server(80);
 
+//------ door ------
+byte door_state;
+
+//------ magnet ------
+const byte MAGNET = 4;
+
+//------ lock ------
+void operate_lock();
+byte lock_state;
+
+//------ motor -------
+//preto +5, branco gnd
+const int stepsPerRevolution = 580;
+const int in1 = 5, in2 = 2, in3 = 14, in4 = 12;
+const int fullTurn = 4*stepsPerRevolution;
+Stepper myStepper(stepsPerRevolution, in1, in3, in2, in4);
+
+//------ authorized keys ------
 const int keys_capacity = 10;
 String keys[keys_capacity];
 int keys_size = 0;
 
+//------ subroutines ------
 void addKey(String key);
 void removeKey(String key);
 bool isKeyAuthorized(String key);
 
 void setup() 
 {
-  //TODO: check whether we can use baud 9600,
-  //like the rest of the code
+  ESP.wdtDisable();
   Serial.begin(115200);
-
-  //Prepare output PIN: HIGH means
-  //we want the door to unlock, LOW
-  //means we want the door to lock.
-  //We want it to be locked, initially
-  pinMode(DOOR_SIGNAL_PIN, OUTPUT);
-  digitalWrite(DOOR_SIGNAL_PIN, LOW);
-
-  //TODO: Wait for user to input network ID and password
+  
+  pinMode(MAGNET, INPUT);
+  
+  myStepper.setSpeed(58);
+  lock_state = CLOSED;
+  door_state = CLOSED;
 
   //Connect to local wireless network
   WiFi.begin(ssid, pass);
@@ -52,7 +66,7 @@ void setup()
     Serial.print(".");
   }
   Serial.print("\nConnected at ");
-  Serial.print(WiFi.localIP());
+  Serial.println(WiFi.localIP());
 
   //Launch server
   server.begin();
@@ -60,48 +74,73 @@ void setup()
 
 void loop() 
 {
+  ESP.wdtDisable();
+
+  if(digitalRead(MAGNET) == HIGH) {
+    door_state = OPEN;
+  }
+  else {
+    if(door_state == OPEN) {
+      operate_lock();
+      door_state = CLOSED;
+    }
+  }
+
   //wait for client connection. 
   //We support only ONE connection at a time!
   WiFiClient client;
-  while( !(client = server.available()) );
-  Serial.println("A client!");
-
-  //read first line of the request
-  String req = client.readStringUntil('\r');
-  char mode = req.charAt(5);
-  String key = req.substring(6, 10);
-  Serial.print("Mode: ");
-  Serial.println(mode);
-  Serial.print("Key: ");
-  Serial.println(key);
-
-  //define whether it is requesting
-  //to open or close the door. Undefined
-  //requests will be equivalent to request
-  //locking.
-
-  if(mode == 'u') {
-    Serial.println("unlock requested");
-    if(isKeyAuthorized(key)) {
-      Serial.println("key authorized");
-      digitalWrite(DOOR_SIGNAL_PIN, HIGH);
-      delay(50);
-      digitalWrite(DOOR_SIGNAL_PIN, LOW);
+  if(!(client = server.available())) {
+    return;
+  }
+  else {
+    Serial.println("A client!");
+  
+    //read first line of the request
+    String req = client.readStringUntil('\r');
+    char mode = req.charAt(5);
+    String key = req.substring(6, 10);
+    Serial.print("Mode: "); Serial.println(mode);
+    Serial.print("Key: "); Serial.println(key);
+  
+    //define whether it is requesting
+    //to open or close the door. Undefined
+    //requests will be equivalent to request
+    //locking.
+    if(mode == 'u') {
+      Serial.println("unlock requested");
+      if(lock_state == CLOSED && door_state == CLOSED) {
+        if(isKeyAuthorized(key)) {
+          Serial.println("key authorized");
+          operate_lock();
+        }
+      }
     }
+    else if(mode == 's') {
+      Serial.println("save requested");
+      addKey(key);
+    }
+    else if(mode == 'r') {
+      Serial.println("remove requested");
+      removeKey(key);
+    }
+  
+    //Send message to client, then disconnect
+    client.flush();
+    client.print("OK");
+    client.stop();
   }
-  else if(mode == 's') {
-    Serial.println("save requested");
-    addKey(key);
-  }
-  else if(mode == 'r') {
-    Serial.println("remove requested");
-    removeKey(key);
-  }
+}
 
-  //Send message to client, then disconnect
-  client.flush();
-  client.print("OK");
-  client.stop();
+void operate_lock() {
+  ESP.wdtDisable();
+  if(lock_state == CLOSED) {
+    myStepper.step(-fullTurn);
+    lock_state = OPEN;
+  }
+  else if(lock_state == OPEN) {
+    myStepper.step(fullTurn);
+    lock_state = CLOSED;
+  } 
 }
 
 void addKey(String key) {
