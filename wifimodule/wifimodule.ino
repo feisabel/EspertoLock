@@ -82,7 +82,9 @@ void loop()
   }
   else {
     if(door_state == OPEN) {
-      operate_lock();
+      if(lock_state == OPEN) {
+        operate_lock();
+      }
       door_state = CLOSED;
     }
   }
