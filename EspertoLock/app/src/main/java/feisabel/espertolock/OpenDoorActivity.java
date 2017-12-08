@@ -38,7 +38,7 @@ import java.util.Date;
 
 public class OpenDoorActivity extends AppCompatActivity {
     String username;
-    String IP = "http://192.168.2.101/";
+    String IP = "http://10.9.99.213/";
     String currentKey = "";
 
     @Override
