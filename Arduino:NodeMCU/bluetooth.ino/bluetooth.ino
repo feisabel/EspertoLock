@@ -78,7 +78,7 @@ void wakeBluetooth()
   sendATCommand("AT+ROLE=1\r\n");//Seta modo MASTER
   //sendATCommand("AT+RESET\r\n"); //Reseta
   sendATCommand("AT+CMODE=1\r\n"); //Permite conexão a qualquer endereço
-  sendATCommand("AT+INQM=1,5,7\r\n"); //Procure um dispositivo ou pare após 2s
+  sendATCommand("AT+INQM=1,20,8\r\n"); //Procure um dispositivo ou pare após 2s
   sendATCommand("AT+INIT\r\n"); //Inicializa dispositivo  
 }
 

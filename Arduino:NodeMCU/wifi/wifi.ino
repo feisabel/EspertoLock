@@ -11,8 +11,8 @@
 #define CLOSED 1
 
 //------ wifi ------
-const char ssid[] = "PI_Guest_C604_2.4G_altos";
-const char pass[] = "1029384756";
+const char ssid[] = "DIMAp-Visitante";
+const char pass[] = "v1s1t4nt3@d1m4p";
 //Port 80 is the default HTTP port.
 //This means we can access it using
 //a url like http://ip
@@ -148,6 +148,7 @@ void operate_lock() {
 
 void addKey(String key) {
   if(keys_size < keys_capacity) {
+    Serial.println("key was saved");
     keys[keys_size] = key;
     keys_size++;
   }
